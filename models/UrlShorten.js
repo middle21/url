@@ -6,7 +6,9 @@ const urlShortenSchema = new Schema({
 	urlCode: String,
 	shortUrl: String,
 	createdAt: { type: Date, default: Date.now },
-	updatedAt: { type: Date, default: Date.now }
+	updatedAt: { type: Date, default: Date.now },
+	hits: Object,
+	ownerId: String
 });
 
 mongoose.model("UrlShorten", urlShortenSchema);

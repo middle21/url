@@ -2,8 +2,10 @@ const mongoose = require("mongoose");
 const validUrl = require("valid-url");
 const UrlShorten = mongoose.model("UrlShorten");
 const shortid = require("shortid");
-const errorUrl = "http://localhost:7000/error";
 const auth = require("../middleware/auth.js");
+const geoip = require("geoip-lite");
+const jwt = require("jsonwebtoken");
+const config = require('../config/config.js');
 
 module.exports = app => {
 
@@ -11,11 +13,28 @@ module.exports = app => {
 		const short_id = req.params.short_id;
 
 		try{
-			const link = await UrlShorten.findOne({ urlCode: short_id });
+			let link = await UrlShorten.findOne({ urlCode: short_id });
 			if(link.length < 1){
 				return res.status(404).json('Uh oh.We couldn\'t find a link at that URL');
 			}
-			res.redirect(link.originalUrl);
+			//res.redirect(link.originalUrl);
+			const geoData = geoip.lookup(req.header('x-forwarded-for') || req.connection.remoteAddress);
+			if(link.hits != '' && link.hits != null && link.hits != undefined){
+				if(link.hits[`${geoData.country}`] != '' && link.hits[`${geoData.country}`] != null){
+					link.hits[`${geoData.country}`] = Number(link.hits[`${geoData.country}`]) + 1;
+				}else{
+					link.hits[`${geoData.country}`] = 1;
+				}
+			}else{
+				let h = {
+					[`${geoData.country}`]: 1
+				}
+				link.hits = h;
+			}
+			await link.markModified("hits");
+			await link.save();
+
+			return res.json(link);
 		}catch(err){
 			return res.status(401).json({ error: err });
 		}
@@ -32,15 +51,47 @@ module.exports = app => {
 		}
 	});
 
-	app.post("/api/item", async (req, res) => {
-		const { originalUrl, shortBaseUrl, preferedCode } = req.body;
-		if( validUrl.isUri(shortBaseUrl) ){
+	app.delete("/api/item/:code", async (req, res) => {
+		const shortCode = req.params.code;
 
-		}else{
-			return res
-				.status(401)
-				.json("Invalid Base Url");
+		try{
+			await UrlShorten.findOneAndRemove({ urlCode: shortCode });
+
+			return res.status(200).json({ "success":"1" });
+		}catch(err){
+			return res.status(401).json('not found');
 		}
+	});
+
+	app.delete("/api/item/deleteById/:id", async (req, res) => {
+		const id = req.params.id;
+
+		try {
+			await UrlShorten.findOneAndRemove({ _id: id });
+			return res.status(200).json({ success: 1 });
+		}catch(err){
+			return res.status(401).json({ error: err });
+		}
+	});
+
+	app.post("/api/item", async (req, res) => {
+		let { originalUrl, preferedCode } = req.body;
+		// check for token 
+		let token = req.headers['access-token'];
+  		let user_id = '';
+		if (token) {
+			jwt.verify(token, config.secret, (err, decoded) => {
+				if (!err) {
+				    req.decoded = decoded;
+				    user_id = decoded.id;
+				}
+			});
+		}
+		// -- end -- check for token
+		if(user_id.length < 1){
+			user_id = shortid.generate();
+		}
+		console.log('$'+user_id+'$');
 	    let urlCode = '';
 	    if(preferedCode){
 	      const check = await UrlShorten.findOne({ urlCode: preferedCode });
@@ -52,20 +103,25 @@ module.exports = app => {
 	    }else{
 	      urlCode = shortid.generate();
 	    }
-
 		
 		const updatedAt = new Date();
+		
+		const original_url_prefix = originalUrl.split(':')[0];
+		if(original_url_prefix != 'http' && original_url_prefix != 'https'){
+			originalUrl = 'http://' + originalUrl;
+		}
 		if( validUrl.isUri(originalUrl) ){
 			const item = await UrlShorten.findOne({ urlCode: urlCode });
 			if( item ){
 				res.status(200).json(item);
 			}else{
-				shortUrl = shortBaseUrl + "/" + urlCode;
+				shortUrl = "localhost:7000/" + urlCode;
 				const item = new UrlShorten({
 					originalUrl,
 					shortUrl,
 					urlCode,
-					updatedAt
+					updatedAt,
+					ownerId: user_id
 				});
 
 				await item.save();
@@ -75,6 +131,15 @@ module.exports = app => {
 			return res
 				.status(401)
 				.json("Invalid Original Url");
+		}
+	});
+
+	app.get("/api/items", async (req, res) => {
+		try{
+			const items = await UrlShorten.find();
+			return res.status(200).json(items);
+		}catch(err){
+			return res.status(401).json({ error: err });
 		}
 	});
 };
