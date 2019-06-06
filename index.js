@@ -29,7 +29,7 @@ app.use(function(req, res, next){
 	res.header("Access-Control-Allow-Methods", "GET,PUT,POST,DELETE");
 	res.header(
 		"Access-Control-Allow-Headers",
-		"Contnt-type,Accept,x-access,token,X-Key"
+		"Content-type,Accept,x-access,token,X-Key"
 	);
 	if(req.method == "OPTIONS"){
 		res.status(200).end();
@@ -41,10 +41,9 @@ app.use(function(req, res, next){
 app.use(bodyParser.json());
 require('./models/UrlShorten');
 require('./models/User.js');
-require('./routes/urlshorten')(app);
 require('./routes/user.js')(app);
 require('./routes/auth.js')(app);
-
+require('./routes/urlshorten')(app);
 
 app.listen(PORT, () => {
 	console.log('Server started on port ', PORT)
