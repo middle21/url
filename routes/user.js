@@ -4,8 +4,36 @@ const users = mongoose.model("Users");
 const crypto = require("crypto");
 const bcrypt = require("bcrypt");
 const auth = require('../middleware/auth.js');
+const jwt = require("jsonwebtoken");
+const config = require("../config/config.js");
 
 module.exports = app => {
+
+	app.get("/api/users/details", async (req,res) => {
+		let token = req.headers['access-token'];
+
+		let user_id = '';
+		if (token) {
+			jwt.verify(token, config.secret, (err, decoded) => {
+				if (!err) {
+				    req.decoded = decoded;
+				    user_id = decoded.id;
+				}
+			});
+		}
+
+		if(user_id){
+			try {
+				const user = await users.findOne({ _id: user_id });
+
+				return res.status(200).json(user);
+			}catch(err){
+				return res.status(401).json(err);
+			}
+			
+		}
+
+	});
 
 	app.post("/api/users", async (req,res) => {
 		const { username, password, email, password2 } = req.body;

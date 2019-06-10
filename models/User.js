@@ -7,7 +7,9 @@ const UserSchema = new Schema({
 	email: String,
 	role: String,
 	createdAt: { type: Date, default: Date.now },
-	updatedAt: { type: Date, default: Date.now }
+	updatedAt: { type: Date, default: Date.now },
+	resetPasswordToken: String,
+	resetPasswordExpires: Date
 });
 
 mongoose.model("Users", UserSchema);

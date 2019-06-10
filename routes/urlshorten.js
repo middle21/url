@@ -9,6 +9,33 @@ const config = require('../config/config.js');
 
 module.exports = app => {
 
+	app.get("/api/getMyLinks", auth.checkToken, async (req,res) => {
+		const token = req.headers['access-token'];
+
+		let user_id = '';
+		if (token) {
+			jwt.verify(token, config.secret, async (err, decoded) => {
+				if (!err) {
+				    req.decoded = decoded;
+				    user_id = decoded.id;
+				    try{
+					    const items = await UrlShorten.find({ ownerId: user_id });
+						if(items.length < 1){
+							return res.status(200).json('not found');
+						}else{
+							return res.status(200).json(items);
+						}
+					}catch(err2){
+						return res.status(401).json({ error: err2 });
+					}
+				}else{
+					return res.status(401).json({ error: err })
+				}
+			});
+		}
+
+	});
+
 	app.get("/api/getGuestLinks", async (req,res) => {
 		const masterkey = req.query.masterkey;
 
@@ -34,10 +61,16 @@ module.exports = app => {
 	app.get("/api/getOriginalUrl", async (req, res) => {
 		const shortCode = req.query.shortCode;
 
-		const item = await UrlShorten.findOne({ urlCode: shortCode }).select('originalUrl');
-
+		const item = await UrlShorten.findOne({ urlCode: shortCode });
+		
 		if(item){
-			return res.status(200).json(item.originalUrl);
+			let expiration;
+			if(item.expiration != null && item.expiration < Date.now()){
+				expiration = 1;
+			}else{
+				expiration = 0;
+			}
+			return res.status(200).json({ originalUrl: item.originalUrl, password: item.password, expiration, redirectionType: item.redirectionType });
 		}else{
 			return res.status(404).json('not-found');
 		}
@@ -78,7 +111,7 @@ module.exports = app => {
 	});
 
 	app.post("/api/item", async (req, res) => {
-		let { originalUrl, preferedCode, masterkey } = req.body;
+		let { originalUrl, alias, masterkey, description, expiration, password, redirecton_type } = req.body;
 		// check for token 
 		let token = req.headers['access-token'];
   		let user_id = '';
@@ -99,12 +132,12 @@ module.exports = app => {
 			user_id = shortid.generate();
 		}
 	    let urlCode = '';
-	    if(preferedCode){
-	      const check = await UrlShorten.findOne({ urlCode: preferedCode });
+	    if(alias){
+	      const check = await UrlShorten.findOne({ urlCode: alias });
 	      if(check){
 	        res.status(401).json("Short URL already used.Choose another one.");
 	      }else{
-	        urlCode = preferedCode;
+	        urlCode = alias;
 	      }
 	    }else{
 	      urlCode = shortid.generate();
@@ -127,7 +160,11 @@ module.exports = app => {
 					shortUrl,
 					urlCode,
 					updatedAt,
-					ownerId: user_id
+					ownerId: user_id,
+					description,
+					expiration,
+					password,
+					redirectionType: redirecton_type
 				});
 
 				await item.save();

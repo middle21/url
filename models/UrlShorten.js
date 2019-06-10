@@ -8,7 +8,11 @@ const urlShortenSchema = new Schema({
 	createdAt: { type: Date, default: Date.now },
 	updatedAt: { type: Date, default: Date.now },
 	hits: Object,
-	ownerId: String
+	ownerId: String,
+	expiration: Date,
+	password: String,
+	description: String,
+	redirectionType: String
 });
 
 mongoose.model("UrlShorten", urlShortenSchema);

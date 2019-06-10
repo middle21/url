@@ -29,7 +29,7 @@ app.use(function(req, res, next){
 	res.header("Access-Control-Allow-Methods", "GET,PUT,POST,DELETE");
 	res.header(
 		"Access-Control-Allow-Headers",
-		"Content-type,Accept,x-access,token,X-Key"
+		"Content-type,Accept,x-access,token,X-Key,access-token"
 	);
 	if(req.method == "OPTIONS"){
 		res.status(200).end();
