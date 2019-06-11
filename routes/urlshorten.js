@@ -10,6 +10,7 @@ const config = require('../config/config.js');
 module.exports = app => {
 
 	app.get("/api/getMyLinks", auth.checkToken, async (req,res) => {
+		const limit = Number(req.query.limit);
 		const token = req.headers['access-token'];
 
 		let user_id = '';
@@ -18,8 +19,14 @@ module.exports = app => {
 				if (!err) {
 				    req.decoded = decoded;
 				    user_id = decoded.id;
+
+				    let items;
 				    try{
-					    const items = await UrlShorten.find({ ownerId: user_id });
+				    	if(limit != null && limit != ''){
+				    		items = await UrlShorten.find({ ownerId: user_id },"_id description urlCode createdAt").sort({ createdAt: 'desc' }).limit(limit);
+				    	}else{
+				    		items = await UrlShorten.find({ ownerId: user_id },"_id description urlCode createdAt").sort({ createdAt: 'desc' });
+				    	}
 						if(items.length < 1){
 							return res.status(200).json('not found');
 						}else{
@@ -37,15 +44,19 @@ module.exports = app => {
 	});
 
 	app.get("/api/getGuestLinks", async (req,res) => {
+		const limit = Number(req.query.limit);
 		const masterkey = req.query.masterkey;
 
 		if(masterkey.length < 1 || masterkey.length > 9){
 			return res.status(500);
 		}
-
+		let items;
 		try{
-
-			const items = await UrlShorten.find({ ownerId: masterkey });
+			if(limit != null && limit != '' && limit > 0){
+				items = await UrlShorten.find({ ownerId: masterkey },"_id description urlCode createdAt").sort({ createdAt: 'desc' }).limit(limit);
+			}else{
+				items = await UrlShorten.find({ ownerId: masterkey },"_id description urlCode createdAt").sort({ createdAt: 'desc' });
+			}
 
 			if(items.length < 1){
 				return res.status(401).json('not found');
@@ -58,6 +69,23 @@ module.exports = app => {
 		
 	});
 
+	app.get("/api/checkUrlPassword", async (req, res) => {
+		const shortCode = req.query.shortCode;
+		const password = req.query.password;
+
+		const item = await UrlShorten.findOne({ urlCode: shortCode });
+		
+		if(item){
+			if(password == item.password){
+				return res.status(200).json({ status: 1,originalUrl: item.originalUrl });
+			}else{
+				return res.status(200).json({ status: 0 });
+			}
+		}else{
+			return res.status(404).json('not-found');
+		}
+	});
+
 	app.get("/api/getOriginalUrl", async (req, res) => {
 		const shortCode = req.query.shortCode;
 
@@ -65,12 +93,21 @@ module.exports = app => {
 		
 		if(item){
 			let expiration;
+			let pass;
+			let orgul;
 			if(item.expiration != null && item.expiration < Date.now()){
 				expiration = 1;
 			}else{
 				expiration = 0;
 			}
-			return res.status(200).json({ originalUrl: item.originalUrl, password: item.password, expiration, redirectionType: item.redirectionType });
+			if(item.password != null && item.password != '')
+			{
+				pass = 1;
+			}else{
+				pass = 0;
+				orgul = item.originalUrl;
+			}
+			return res.status(200).json({ originalUrl: orgul,password: pass, expiration, redirectionType: item.redirectionType });
 		}else{
 			return res.status(404).json('not-found');
 		}
@@ -111,7 +148,7 @@ module.exports = app => {
 	});
 
 	app.post("/api/item", async (req, res) => {
-		let { originalUrl, alias, masterkey, description, expiration, password, redirecton_type } = req.body;
+		let { originalUrl, alias, masterkey, description, expiration, password, redirectionType } = req.body;
 		// check for token 
 		let token = req.headers['access-token'];
   		let user_id = '';
@@ -164,9 +201,8 @@ module.exports = app => {
 					description,
 					expiration,
 					password,
-					redirectionType: redirecton_type
+					redirectionType
 				});
-
 				await item.save();
 				res.status(200).json(item);
 			}

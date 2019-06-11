@@ -1,6 +1,7 @@
 const express = require("express");
 const mongoose = require("mongoose");
 const users = mongoose.model("Users");
+const UrlShorten = mongoose.model("UrlShorten");
 const crypto = require("crypto");
 const bcrypt = require("bcrypt");
 const auth = require('../middleware/auth.js');
@@ -36,7 +37,7 @@ module.exports = app => {
 	});
 
 	app.post("/api/users", async (req,res) => {
-		const { username, password, email, password2 } = req.body;
+		const { username, password, email, password2, owner_id } = req.body;
 		if(!username){
 			return res.status(401).json("The username is required.");
 		}
@@ -74,6 +75,12 @@ module.exports = app => {
 						});
 
 						await user.save();
+
+						let user_links = await UrlShorten.find({ ownerId: owner_id });
+						user_links.forEach(async (link) => {
+							link.ownerId = user._id;
+							await link.save();
+						});
 						res.status(200).json(user);
 					}
 				}catch(err){
