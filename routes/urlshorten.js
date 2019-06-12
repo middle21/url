@@ -1,6 +1,7 @@
 const mongoose = require("mongoose");
 const validUrl = require("valid-url");
 const UrlShorten = mongoose.model("UrlShorten");
+const Report = mongoose.model("Report");
 const shortid = require("shortid");
 const auth = require("../middleware/auth.js");
 const geoip = require("geoip-lite");
@@ -8,6 +9,24 @@ const jwt = require("jsonwebtoken");
 const config = require('../config/config.js');
 
 module.exports = app => {
+
+	app.post("/api/reportLink", async (req,res) => {
+		const { link, motiv } = req.body;
+
+		if(link.length < 1){
+			return res.status(401).json({ success: 0, error: 'Invalid URL.' });
+		}
+
+		const newReport = new Report({
+			link,
+			motiv
+		});
+
+		await newReport.save();
+
+		return res.status(200).json({ success: 1 });
+
+	});
 
 	app.get("/api/getMyLinks", auth.checkToken, async (req,res) => {
 		const limit = Number(req.query.limit);

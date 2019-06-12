@@ -41,6 +41,7 @@ app.use(function(req, res, next){
 app.use(bodyParser.json());
 require('./models/UrlShorten');
 require('./models/User.js');
+require('./models/Report.js');
 require('./routes/user.js')(app);
 require('./routes/auth.js')(app);
 require('./routes/urlshorten')(app);
