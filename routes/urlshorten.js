@@ -168,7 +168,10 @@ module.exports = app => {
 
 	app.post("/api/item", async (req, res) => {
 		let { originalUrl, alias, masterkey, description, expiration, password, redirectionType } = req.body;
-		// check for token 
+		// check for token
+		if(originalUrl == null || originalUrl.length < 1){
+			return res.status(401).json({ error: 1, message: 'Original url not found.' });
+		}
 		let token = req.headers['access-token'];
   		let user_id = '';
 		if (token) {
@@ -228,7 +231,7 @@ module.exports = app => {
 		}else{
 			return res
 				.status(401)
-				.json("Invalid Original Url");
+				.json({ error: 1, message: "Invalid Original Url" });
 		}
 	});
 
