@@ -81,15 +81,15 @@ module.exports = app => {
 		const { email, password } = req.body;
 		
 		try {
-			const check = await users.findOne({ email: email });
+			const check = await users.findOne({ email: email.toLowerCase() });
 			if(check.length < 1){
-				return res.status(401).json('not found');
+				//return res.status(401).json('not found');
+				return res.status(401).json({ error: 1, message: 'Not found.' });
 			}
-
 			bcrypt.compare(password, check.password, (err, result) => {
-				
 				if(err){
-					return res.status(401).json("Auth failed1.");
+					//return res.status(401).json("Auth failed1.");
+					return res.status(401).json({ error: 1, message: 'Auth failed.' });
 				}
 				
 				if(result){
@@ -102,7 +102,8 @@ module.exports = app => {
 
 					return res.status(200).json(token);
 				}else{
-					return res.status(401).json("Auth failed.");
+					//return res.status(401).json("Auth failed.");
+					return res.status(401).json({ error: 1, message: 'Auth failed.' });
 				}
 			});
 			
