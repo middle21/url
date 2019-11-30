@@ -54,12 +54,12 @@ module.exports = app => {
 				await user.save();
 
 				let smtpTransport = nodemailer.createTransport({
-					host: "bloomcom.designyourfuture.ro",
+					host: "",
 					port: 465,
 					secure: true,
 					auth: {
-						user: 'test@designyourfuture.ro',
-						pass: "p}~ynp~T]J6("
+						user: '',
+						pass: ""
 					}
 				});
 
